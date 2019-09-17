@@ -7,21 +7,53 @@
 //
 
 
-// The top left of the nav bar should be a back button that takes you to a new home screen to select projects
 // Improve the autolayout for 8 / 8+
 // Keyboard should dynamically change height of view on itemdetailview
-// Move cells without being in edit mode. Gesture up / down. Long press & move
 // Add edit btn on collection view to remove selected cells
+// Switch priority from Int to String. Helps w/ json to other apps
+// Get the navigation title of the todolist? How to persist?
+// the navigation title when editable should have a background color. Add a margin above/below font
+// Change color on header and CollectionView. So the list needs meta data...
 
 
 import UIKit
 
 class TodoViewController: UITableViewController {
-    weak var todoList: TodoList?
+    var todoList: TodoList
+    var lists: [[TodoItem]]?
+    var selectedList: [TodoItem]?
+    var indexOfList: Int?
 
     var shouldEditMenuItemsBeShown: Bool = false
     
     var navigationItemEditableTitleTextField = UITextField()
+    
+    required init?(coder aDecoder: NSCoder) {
+        todoList = TodoList()
+        super.init(coder: aDecoder)
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        // Set large titles
+        navigationController?.navigationBar.prefersLargeTitles = true
+        navigationController?.isToolbarHidden = false
+        
+        navigationItem.title = "Todos"
+
+        // Add a bottom toolbar that's transparent with the add button
+        navigationController?.toolbar.setBackgroundImage(UIImage(), forToolbarPosition: .any, barMetrics: .default)
+        navigationController?.toolbar.setShadowImage(UIImage(), forToolbarPosition: .any)
+        addToolbarButton.setBackgroundImage(UIImage(named: "circle"), for: .normal, barMetrics: .default)
+        
+        tableView.allowsMultipleSelectionDuringEditing = true
+        
+        // Initializes the button so it doesn't show when not in editing mode
+        deleteListItemsButton.image = UIImage()
+        
+        todoList.loadListToView(list: selectedList!)
+    }
     
     @IBOutlet weak var addToolbarButton: UIBarButtonItem!
     @IBOutlet weak var editListButton: UIBarButtonItem!
@@ -38,10 +70,10 @@ class TodoViewController: UITableViewController {
         if let selectedRows = tableView.indexPathsForSelectedRows {
             for indexPath in selectedRows {
                 if let priority = priorityForSectionIndex(indexPath.section) {
-                    let todos = todoList!.todoList(for: priority)
+                    let todos = todoList.todoList(for: priority)
                     let rowToDelete = indexPath.row > todos.count - 1 ? todos.count - 1 : indexPath.row
                     let item = todos[rowToDelete]
-                    todoList!.remove(item, from: priority, at: rowToDelete)
+                    todoList.remove(item, from: priority, at: rowToDelete)
                 }
             }
             tableView.beginUpdates()
@@ -56,29 +88,6 @@ class TodoViewController: UITableViewController {
         if !self.isEditing {
             navigationItem.title = navigationItemEditableTitleTextField.text
         }
-    }
-    
-//    required init?(coder aDecoder: NSCoder) {
-//        todoList = TodoList()
-//        super.init(coder: aDecoder)
-//    }
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        
-        // Set large titles
-        navigationController?.navigationBar.prefersLargeTitles = true
-        navigationController?.isToolbarHidden = false
-
-        // Add a bottom toolbar that's transparent with the add button
-        navigationController?.toolbar.setBackgroundImage(UIImage(), forToolbarPosition: .any, barMetrics: .default)
-        navigationController?.toolbar.setShadowImage(UIImage(), forToolbarPosition: .any)
-        addToolbarButton.setBackgroundImage(UIImage(named: "circle"), for: .normal, barMetrics: .default)
-        
-        tableView.allowsMultipleSelectionDuringEditing = true
-        
-        // Initializes the button so it doesn't show when not in editing mode
-        deleteListItemsButton.image = UIImage()
     }
     
     // Sets the state of editing to prevent other actions while editing
@@ -116,13 +125,14 @@ class TodoViewController: UITableViewController {
         navigationItemEditableTitleTextField.font = UIFont.systemFont(ofSize: 19)
         navigationItemEditableTitleTextField.textColor = UIColor.white
         navigationItemEditableTitleTextField.textAlignment = .center
+        navigationItemEditableTitleTextField.backgroundColor = UIColor.init(red: 0.0, green: 0.0, blue: 0.0, alpha: 0.1)
         navigationItem.titleView = navigationItemEditableTitleTextField
     }
 
     // Return the number of rows for a given priority section
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         if let priority = priorityForSectionIndex(section) {
-            return todoList!.todoList(for: priority).count
+            return todoList.todoList(for: priority).count
         }
         return 0
     }
@@ -131,7 +141,7 @@ class TodoViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "TodoItem", for: indexPath)
         if let priority = priorityForSectionIndex(indexPath.section) {
-            let items = todoList!.todoList(for: priority)
+            let items = todoList.todoList(for: priority)
             let item = items[indexPath.row]
             configureText(for: cell, with: item)
             configureCheckmark(for: cell, with: item)
@@ -159,7 +169,7 @@ class TodoViewController: UITableViewController {
             
             if let cell = tableView.cellForRow(at: indexPath) {
                 if let priority = self.priorityForSectionIndex(indexPath.section) {
-                    let items = self.todoList!.todoList(for: priority)
+                    let items = self.todoList.todoList(for: priority)
                     let item = items[indexPath.row]
                     
                     let generator = UIImpactFeedbackGenerator(style: .light)
@@ -170,12 +180,12 @@ class TodoViewController: UITableViewController {
                     
                     // Moves the item to the completed category while preserving it's original priority section
                     if item.checked {
-                        self.todoList!.move(item: item, from: priority, at: indexPath.row, to: .completed)
+                        self.todoList.move(item: item, from: priority, at: indexPath.row, to: .completed)
                     } else {
-                        self.todoList!.move(item: item, from: priority, at: indexPath.row, to: TodoList.Priority(rawValue: item.priority)!)
+                        self.todoList.move(item: item, from: priority, at: indexPath.row, to: TodoList.Priority(rawValue: item.priority)!)
                     }
                     
-                    self.todoList!.save()
+                    self.todoList.save(indexOfList: self.indexOfList!, lists: self.lists!)
                     self.tableView.reloadData()
                 }
             }
@@ -194,10 +204,10 @@ class TodoViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         let modifyAction = UIContextualAction(style: .destructive, title:  "Delete", handler: { (ac:UIContextualAction, view:UIView, success:(Bool) -> Void) in
             if let priority = self.priorityForSectionIndex(indexPath.section) {
-                let item = self.todoList!.todoList(for: priority)[indexPath.row]
-                self.todoList!.remove(item, from: priority, at: indexPath.row)
+                let item = self.todoList.todoList(for: priority)[indexPath.row]
+                self.todoList.remove(item, from: priority, at: indexPath.row)
                 
-                self.todoList!.save()
+                self.todoList.save(indexOfList: self.indexOfList!, lists: self.lists!)
             }
 
             let indexPaths = [indexPath]
@@ -218,11 +228,11 @@ class TodoViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, moveRowAt sourceIndexPath: IndexPath, to destinationIndexPath: IndexPath) {
         if let srcPriority = priorityForSectionIndex(sourceIndexPath.section),
             let destPriority = priorityForSectionIndex(destinationIndexPath.section) {
-            let item = todoList!.todoList(for: srcPriority)[sourceIndexPath.row]
-            todoList!.move(item: item, from: srcPriority, at: sourceIndexPath.row, to: destPriority, at: destinationIndexPath.row)
+            let item = todoList.todoList(for: srcPriority)[sourceIndexPath.row]
+            todoList.move(item: item, from: srcPriority, at: sourceIndexPath.row, to: destPriority, at: destinationIndexPath.row)
         }
         
-        todoList!.save()
+        todoList.save(indexOfList: indexOfList!, lists: lists!)
         tableView.reloadData()
     }
     
@@ -270,7 +280,7 @@ class TodoViewController: UITableViewController {
                    let indexPath = tableView.indexPath(for: cell),
                    let priority = priorityForSectionIndex(indexPath.section) {
                     
-                    let item = todoList!.todoList(for: priority)[indexPath.row]
+                    let item = todoList.todoList(for: priority)[indexPath.row]
                     itemDetailViewController.itemToEdit = item
                     itemDetailViewController.itemIndex = indexPath.row
                     itemDetailViewController.delegate = self
@@ -312,17 +322,17 @@ extension TodoViewController: ItemDetailViewControllerDelegate {
     
     func itemDetailViewControllerDidAdd(_ controller: ItemDetailViewController, didFinishAdding item: TodoItem, for priority: TodoList.Priority) {
         navigationController?.popViewController(animated: true)
-        let rowIndex = todoList!.todoList(for: priority).count - 1
+        let rowIndex = todoList.todoList(for: priority).count - 1
         let indexPath = IndexPath(row: rowIndex, section: priority.rawValue)
         let indexPaths = [indexPath]
         tableView.insertRows(at: indexPaths, with: .automatic)
         
-        todoList!.save()
+        todoList.save(indexOfList: indexOfList!, lists: lists!)
     }
     
     func itemDetailViewController(_ controller: ItemDetailViewController, didFinishEditing item: TodoItem) {
             for priority in TodoList.Priority.allCases {
-                let currentList = todoList!.todoList(for: priority)
+                let currentList = todoList.todoList(for: priority)
                 if let index = currentList.index(of: item) {
                     let indexPath = IndexPath(row: index, section: priority.rawValue)
                     if let cell = tableView.cellForRow(at: indexPath) {
@@ -330,12 +340,12 @@ extension TodoViewController: ItemDetailViewControllerDelegate {
                     }
                     
                     if priority.rawValue != item.priority {
-                        todoList!.move(item: item, from: priority, at: index, to: TodoList.Priority(rawValue: item.priority)!)
+                        todoList.move(item: item, from: priority, at: index, to: TodoList.Priority(rawValue: item.priority)!)
                     }
                 }
             }
         
-        todoList!.save()
+        todoList.save(indexOfList: indexOfList!, lists: lists!)
         tableView.reloadData()
         navigationController?.popViewController(animated: true)
     }

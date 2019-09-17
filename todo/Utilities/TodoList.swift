@@ -19,11 +19,8 @@ class TodoList {
     private var noPriorityTodos: [TodoItem] = []
     private var completedTodos: [TodoItem] = []
     
-    init() {
-        load()
-    }
-    
-    func save() {
+    func save(indexOfList: Int, lists: [[TodoItem]]) {
+        var listOfTodos = lists
         var todos: [TodoItem] = []
         
         for todo in highPriorityTodos {
@@ -41,14 +38,13 @@ class TodoList {
         for todo in completedTodos {
             todos.append(todo)
         }
-
-        FileManager().saveTodos(todos: todos)
+    
+        listOfTodos[indexOfList] = todos
+        FileManager().saveLists(lists: listOfTodos)
     }
     
-    func load() {
-        let todos = FileManager().loadTodos()
-        
-        for todo in todos {
+    func loadListToView(list: [TodoItem]) {
+        for todo in list {
             if todo.checked {
                 completedTodos.append(todo)
             } else {

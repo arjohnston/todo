@@ -13,22 +13,21 @@ class CollectionViewController: UIViewController {
     @IBOutlet weak var collectionView: UICollectionView!
     @IBOutlet weak var addCollectionViewCell: UIBarButtonItem!
 
-    var todoList: TodoList
-    
-    var collectionData = [
-        "1", "2", "3", "4"
-    ]
+    var lists: [[TodoItem]]
     
     required init?(coder aDecoder: NSCoder) {
-        todoList = TodoList()
+        lists = FileManager().loadLists()
         super.init(coder: aDecoder)
     }
     
     @IBAction func addCollectionButton(_ sender: Any) {
-        collectionData.append("\(collectionData.count + 1)")
+        let newList: [TodoItem] = []
+        lists.append(newList)
         
-        let indexPath = IndexPath(row: collectionData.count - 1, section: 0)
+        let indexPath = IndexPath(row: lists.count - 1, section: 0)
         collectionView.insertItems(at: [indexPath])
+        
+        FileManager().saveLists(lists: lists)
         
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
@@ -56,22 +55,24 @@ class CollectionViewController: UIViewController {
         self.navigationController?.toolbar.setBackgroundImage(UIImage(), forToolbarPosition: .any, barMetrics: .default)
         self.navigationController?.toolbar.setShadowImage(UIImage(), forToolbarPosition: .any)
         addCollectionViewCell.setBackgroundImage(UIImage(named: "circle"), for: .normal, barMetrics: .default)
-
+        
+//        self.navigationController?.navigationItem.leftBarButtonItem = editButtonItem
     }
     
     // Handles Segue's as set up in the Main Storyboard
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "SelectListSegue" {
-
             if let todoViewController = segue.destination as? TodoViewController {
-                todoViewController.todoList = todoList
-                
-//                if let cell = sender as? UICollectionViewCell,
-//                   let indexPath = collectionView.indexPath(for: cell) {
-                
-                    let list = todoList // this should select the one... using [indexPath.row]
-                    todoViewController.todoList = list
-//                }
+                if let cell = sender as? UICollectionViewCell,
+                   let indexPath = collectionView.indexPath(for: cell) {
+                    // Reload the list for any newly savedr information
+                    lists = FileManager().loadLists()
+                    
+                    todoViewController.lists = lists
+                    todoViewController.selectedList = lists[indexPath.row]
+                    todoViewController.indexOfList = indexPath.row
+                    todoViewController.tableView.reloadData()
+                }
             }
         }
     }
@@ -80,14 +81,14 @@ class CollectionViewController: UIViewController {
 
 extension CollectionViewController: UICollectionViewDelegate, UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return collectionData.count
+        return lists.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CollectionViewCell", for: indexPath)
         
         if let label = cell as? CollectionViewCell {
-            label.collectionViewCellTitle.text = collectionData[indexPath.row]
+            label.collectionViewCellTitle.text = "hi"
         }
 
         return cell

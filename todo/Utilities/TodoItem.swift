@@ -19,7 +19,6 @@ class TodoItem: NSObject, Codable {
         self.itemDescription = itemDescription
         self.checked = checked
         self.priority = priority
-        
     }
     
     func toggleChecked() {
